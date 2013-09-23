@@ -1,0 +1,13 @@
+{
+    "manifest_version": 2,
+    "name": "Chorf",
+    "description": "",
+    "version": "1.0",
+    "permissions": ["tabs", "*:// INSERT URL /"],
+    "content_scripts": [
+        {
+            "matches": ["*:// INSERT URL /"],
+            "js": ["content.js"]
+        }
+    ]
+}
