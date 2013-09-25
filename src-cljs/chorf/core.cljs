@@ -6,7 +6,8 @@
             [shodan.console :as console]
             [clojure.set :as set]))
 
-(def storage (goog.storage.mechanism.HTML5LocalStorage.))
+;; https://github.com/emezeske/lein-cljsbuild/blob/0.3.3/doc/CROSSOVERS.md
+;; http://blog.getprismatic.com/blog/2013/4/29/faster-better-dom-manipulation-with-dommy-and-clojurescript
 
 (defn get-elements
   []
@@ -14,35 +15,41 @@
     (map d/text (d/nodes result))))
 
 (defn clear-storage
-  []
+  [storage]
   (.clear storage))
 
-;; (clear-storage)
-
 (defn store-snapshot
-  [elements timestamp]
-  (.set storage timestamp (JSON/stringify (clj->js {:elements elements}))))
+  [storage key elements]
+  (.set storage key (JSON/stringify (clj->js {:elements elements}))))
 
 (defn take-snapshot
-  [timestamp]
-  (store-snapshot (get-elements) timestamp))
+  [storage timestamp]
+  (store-snapshot storage (get-elements) timestamp))
 
 (defn storage-keys
-  []
+  [storage]
   (g-iter/toArray (.__iterator__ storage true)))
 
+(defn storage-values
+  [storage]
+  (g-iter/toArray (.__iterator__ storage false)))
+
+(defn storage-to-map
+  [storage]
+  (zipmap (storage-keys storage) (storage-values storage)))
+
 (defn get-diff
-  [ks]
-  (let [sorted-ks (sort (fn [a b] (< a b)) ks)]
-    (reduce (fn [acc k]
-              (let [elements (set (get (js->clj (JSON/parse (.get storage k))) "elements"))
+  [storage]
+  (let [sorted-entries (sort (fn [a b] (< (key a) (key b))) (storage-to-map storage))]
+    (reduce (fn [acc [k v]]
+              (let [elements (set (get (js->clj (JSON/parse v)) "elements"))
                     diff (if (seq acc)
                            (let [s1 elements
                                  s2 (:elements (last acc))]
                              [(set/difference s1 s2)
                               (set/difference s2 s1)])
                            nil)]
-                (conj acc {:key k :diff diff :elements elements}))) [] sorted-ks)))
+                (conj acc {:key k :diff diff :elements elements}))) [] sorted-entries)))
 
 (defn needs-update?
   [current-timestamp timestamps]
@@ -73,9 +80,10 @@
 
 (defn init
   []
-  (let [current-timestamp (local-midnight (js/Date.))]
-    (when (needs-update? current-timestamp (storage-keys))
-      (take-snapshot current-timestamp)))
-  (print-summary (get-diff (storage-keys))))
+  (let [storage (goog.storage.mechanism.HTML5LocalStorage.)
+        current-timestamp (local-midnight (js/Date.))]
+    (when (needs-update? current-timestamp (storage-keys storage))
+      (take-snapshot storage current-timestamp))
+    (print-summary (get-diff storage))))
 
 (init)
