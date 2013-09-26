@@ -20,7 +20,7 @@
   (.set storage key (JSON/stringify (clj->js {:elements elements}))))
 
 (defn take-snapshot [storage timestamp]
-  (store-snapshot storage (get-elements) timestamp))
+  (store-snapshot storage timestamp (get-elements)))
 
 (defn storage-keys [storage]
   (g-iter/toArray (.__iterator__ storage true)))
